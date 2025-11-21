@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgres:13
+    container_name: odoo18-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-postgres}
+      - POSTGRES_USER=${POSTGRES_USER:-odoo}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odoo}
+    volumes:
+      - pgdata18:/var/lib/postgresql/data
+    networks:
+      - odoo18-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-odoo} -d ${POSTGRES_DB:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: odoo:18.0
+    container_name: odoo18
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${ODOO_HTTP_PORT:-8069}:8069"
+      - "8072:8072"
+    environment:
+      - HOST=${ODOO_DB_HOST:-odoo18-db}
+      - USER=${ODOO_DB_USER:-odoo}
+      - PASSWORD=${ODOO_DB_PASSWORD:-odoo}
+    volumes:
+      - odoo18-data:/var/lib/odoo
+      - ./custom_addons:/mnt/extra-addons:Z
+      - ./config/odoo.conf:/etc/odoo/odoo.conf:Z
+    networks:
+      - odoo18-net
+
+volumes:
+  pgdata18:
+  odoo18-data:
+
+networks:
+  odoo18-net:
+    driver: bridge
+
